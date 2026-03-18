@@ -8,8 +8,10 @@ import yaml
 from core.planner import PlannerAgent
 from core.prompt_compiler import PromptCompilerAgent
 
-PLAN_FILE = Path("plan.MD")
-GENERATED_PROMPTS_DIR = Path("src/schemas/generated")
+from datetime import datetime
+
+RUN_DIR = Path(f"runs/{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+GENERATED_PROMPTS_DIR = RUN_DIR / "agent-schemas"
 
 app = typer.Typer(
     name="agent-forge",
@@ -88,8 +90,10 @@ def render_plan_markdown(plan_result: dict) -> str:
 
 def write_plan_file(plan_result: dict) -> Path:
     plan_markdown = render_plan_markdown(plan_result)
-    PLAN_FILE.write_text(plan_markdown, encoding="utf-8")
-    return PLAN_FILE.resolve()
+    plan_file = RUN_DIR / "current_plan.md"
+    RUN_DIR.mkdir(parents=True, exist_ok=True)
+    plan_file.write_text(plan_markdown, encoding="utf-8")
+    return plan_file.resolve()
 
 
 def slugify(value: str) -> str:
