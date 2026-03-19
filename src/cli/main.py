@@ -8,7 +8,6 @@ import yaml
 from core.planner import PlannerAgent
 from core.prompt_compiler import PromptCompilerAgent
 
-from datetime import datetime
 import uuid
     
 RUN_DIR = Path(f"runs")
@@ -95,28 +94,33 @@ def render_plan_markdown(plan_result: dict) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
-def construct_state() -> dict:
+def construct_state(plan_result: dict) -> dict:
     init_state = {
-        "status": "in_progress",
-        "agents": {},
+        "status": "idle",
+        "agents": [],
         "execution_order": [],
         "parallel_groups": [],
         "completed_agents": [],
         "failed_agents": [],
         "spawned_agents": []
     }
+
+    init_state["execution_order"] = plan_result.get("execution_plan", {}).get("order", [])
+    init_state["parallel_groups"] = plan_result.get("execution_plan", {}).get("parallel_groups", [])
+    init_state["agents"] = plan_result.get("agents", [])
+
+    RUN_DIR.mkdir(parents=True, exist_ok=True)
+    state_file = RUN_DIR / "state.json"
+    state_file.write_text(json.dumps(init_state, indent=2), encoding="utf-8")
+
     return init_state
 
 
 def write_plan_file(plan_result: dict) -> Path:
     plan_markdown = render_plan_markdown(plan_result)
     plan_file = RUN_DIR / "current_plan.md"
-    RUN_DIR.mkdir(parents=True, exist_ok=True)
     plan_file.write_text(plan_markdown, encoding="utf-8")
 
-    init_state = construct_state()
-    state_file = RUN_DIR / "state.json"
-    state_file.write_text(json.dumps(init_state, indent=2), encoding="utf-8")
     return plan_file.resolve()
 
 
@@ -193,6 +197,7 @@ def plan(
         typer.secho(f"Run ID save and use it for other operations: {run_id}", fg=typer.colors.YELLOW)
         typer.secho("Generating plan ...", fg=typer.colors.GREEN)
         plan_result = planner.create_plan(prompt)
+        state = construct_state(plan_result)
 
         typer.secho("Plan generation complete", fg=typer.colors.BLUE)
         plan_path = write_plan_file(plan_result)
@@ -221,6 +226,15 @@ def plan(
     except Exception as exc:
         typer.secho(f"Error: {exc}", err=True, fg=typer.colors.RED)
         raise typer.Exit(code=1)
+    
+
+@app.command()
+def execute(
+    run_id: Annotated[str, typer.Argument(help="Run ID to execute.")]
+) -> None:
+    """Execute a plan by run ID."""
+    typer.secho("Execution functionality not implemented yet.", fg=typer.colors.YELLOW)
+
 
 
 if __name__ == "__main__":
