@@ -233,7 +233,19 @@ def execute(
     run_id: Annotated[str, typer.Argument(help="Run ID to execute.")]
 ) -> None:
     """Execute a plan by run ID."""
-    typer.secho("Execution functionality not implemented yet.", fg=typer.colors.YELLOW)
+    try:
+        from core.orchestrate import execute_run
+
+        typer.secho(f"Executing run {run_id} ...", fg=typer.colors.GREEN)
+        result = execute_run(run_id)
+        typer.secho("Execution complete.", fg=typer.colors.BLUE)
+        typer.secho(
+            f"Final output written to {result.get('final_output_path', 'unknown')}",
+            fg=typer.colors.BLUE,
+        )
+    except Exception as exc:
+        typer.secho(f"Error: {exc}", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=1)
 
 
 
