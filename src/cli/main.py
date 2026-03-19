@@ -9,9 +9,9 @@ from core.planner import PlannerAgent
 from core.prompt_compiler import PromptCompilerAgent
 
 from datetime import datetime
-
-RUN_DIR = Path(f"runs/{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-GENERATED_PROMPTS_DIR = RUN_DIR / "agent-schemas"
+import uuid
+    
+RUN_DIR = Path(f"runs")
 
 app = typer.Typer(
     name="agent-forge",
@@ -23,6 +23,13 @@ app = typer.Typer(
 @app.callback()
 def cli() -> None:
     """Run agent-forge commands."""
+
+
+def generate_run_id() -> str:
+    global RUN_DIR
+    run_id = str(uuid.uuid4())
+    RUN_DIR = RUN_DIR / run_id
+    return run_id
 
 
 def render_plan_markdown(plan_result: dict) -> str:
@@ -88,11 +95,28 @@ def render_plan_markdown(plan_result: dict) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def construct_state() -> dict:
+    init_state = {
+        "status": "in_progress",
+        "agents": {},
+        "execution_order": [],
+        "parallel_groups": [],
+        "completed_agents": [],
+        "failed_agents": [],
+        "spawned_agents": []
+    }
+    return init_state
+
+
 def write_plan_file(plan_result: dict) -> Path:
     plan_markdown = render_plan_markdown(plan_result)
     plan_file = RUN_DIR / "current_plan.md"
     RUN_DIR.mkdir(parents=True, exist_ok=True)
     plan_file.write_text(plan_markdown, encoding="utf-8")
+
+    init_state = construct_state()
+    state_file = RUN_DIR / "state.json"
+    state_file.write_text(json.dumps(init_state, indent=2), encoding="utf-8")
     return plan_file.resolve()
 
 
@@ -136,6 +160,7 @@ def write_compiled_prompt_file(
     compiled_agent_prompt: dict,
     task_summary: str,
 ) -> Path:
+    GENERATED_PROMPTS_DIR = RUN_DIR / "agent-schemas"
     GENERATED_PROMPTS_DIR.mkdir(parents=True, exist_ok=True)
 
     agent_id = compiled_agent_prompt.get("compiled_from_agent_id", "Unnamed Agent")
@@ -161,9 +186,11 @@ def plan(
 ) -> None:
     """Create a plan from a prompt."""
     try:
+        run_id = generate_run_id()
         planner = PlannerAgent()
         compiler = PromptCompilerAgent()
 
+        typer.secho(f"Run ID save and use it for other operations: {run_id}", fg=typer.colors.YELLOW)
         typer.secho("Generating plan ...", fg=typer.colors.GREEN)
         plan_result = planner.create_plan(prompt)
 
