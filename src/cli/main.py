@@ -121,7 +121,10 @@ def write_plan_file(plan_result: dict) -> Path:
     plan_file = RUN_DIR / "current_plan.md"
     plan_file.write_text(plan_markdown, encoding="utf-8")
 
-    return plan_file.resolve()
+    plan_json_file = RUN_DIR / "current_plan.json"
+    plan_json_file.write_text(json.dumps(plan_result, indent=2), encoding="utf-8")
+
+    return plan_file.resolve(), plan_json_file.resolve()
 
 
 def slugify(value: str) -> str:
@@ -200,9 +203,10 @@ def plan(
         state = construct_state(plan_result)
 
         typer.secho("Plan generation complete", fg=typer.colors.BLUE)
-        plan_path = write_plan_file(plan_result)
+        plan_path, plan_json_path = write_plan_file(plan_result)
         
         typer.secho(f"Current plan written to {plan_path}", fg=typer.colors.BLUE)
+        typer.secho(f"Current plan (JSON) written to {plan_json_path}", fg=typer.colors.BLUE)
         typer.secho("Compiling agent prompts ...", fg=typer.colors.GREEN)
         
         task_summary = plan_result.get("task_summary", "No task summary provided.")
@@ -222,6 +226,23 @@ def plan(
         typer.secho("Prompt compilation complete", fg=typer.colors.BLUE)
         for prompt_path in generated_prompt_paths:
             typer.secho(f"Stored generated prompt at {prompt_path}", fg=typer.colors.BLUE)
+
+    except Exception as exc:
+        typer.secho(f"Error: {exc}", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    
+
+@app.command()
+def construct(
+    run_id: Annotated[str, typer.Argument(help="Run ID to construct orchestrator for.")]
+):
+    """Get orchestrator code from orchestrator agent."""
+    try:
+        from core.master_orchestrator import MasterOrchestratorAgent
+
+        orchestrator = MasterOrchestratorAgent(run_id=run_id)
+        out = orchestrator.construct_orchestrator()
+        typer.secho(f"Constructed orchestrator plan {out}", fg=typer.colors.BLUE)
 
     except Exception as exc:
         typer.secho(f"Error: {exc}", err=True, fg=typer.colors.RED)
