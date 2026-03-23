@@ -44,6 +44,8 @@ prompt: |
   - Treat "verification strategies" as conditional branches or checkpoints in the orchestration.
   - Treat "ambiguity-handling roles" as special nodes that manage uncertainty in the execution flow.
   - Treat "conditional agents" as nodes that are only executed based on certain conditions defined in the plan.
+  - Use OpenAI for agent execution, and ensure that the orchestrator code includes the necessary logic to call OpenAI with the correct prompts and handle the responses appropriately.
+  - Assume the API-KEY is set as environment variable as OPENAI_API_KEY and the model as OPENAI_MODEL, do not hardcode it in the orchestrator code.
 
   Output valid JSON only.
 
