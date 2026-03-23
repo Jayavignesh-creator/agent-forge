@@ -240,6 +240,7 @@ def construct(
     try:
         from core.master_orchestrator import MasterOrchestratorAgent
 
+        typer.secho(f"Constructing langgraph orchestrator code for run {run_id} ...", fg=typer.colors.GREEN)
         orchestrator = MasterOrchestratorAgent(run_id=run_id)
         out = orchestrator.construct_orchestrator()
         typer.secho(f"Constructed orchestrator plan {out}", fg=typer.colors.BLUE)

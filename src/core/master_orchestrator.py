@@ -54,7 +54,7 @@ class MasterOrchestratorAgent:
             "execution_plan": {
                 "order": plan_result.get("execution_plan", {}).get("order", []),
                 "parallel_groups": plan_result.get("execution_plan", {}).get("parallel_groups", []),
-                "verification_strategies": plan_result.get("execution_plan", {}).get("verification_strategies", [])
+                "merge_strategy": plan_result.get("execution_plan", {}).get("merge_strategy", [])
             },
             "agents": plan_result.get("agents", []),
             "agent_prompt_paths": agent_paths,
@@ -65,6 +65,13 @@ class MasterOrchestratorAgent:
     def write_orchestrator_output(self, orchestrator_output: dict[str, Any]) -> Path:
         output_path = self.RUN_DIR / "orchestrator_output.json"
         output_path.write_text(json.dumps(orchestrator_output, indent=2), encoding="utf-8")
+
+        orch_code = orchestrator_output["orchestrator_code"]
+        # create a runnable Python script with the orchestrator code
+        script_path = self.RUN_DIR / "orchestrator.py"
+        script_content = f"""\"\"\"Auto-generated orchestrator script. Do not edit directly.\"\"\"\n{orch_code}"""
+        script_path.write_text(script_content, encoding="utf-8")
+
         return output_path.resolve()
 
     def construct_orchestrator(self) -> dict[str, Any]:
