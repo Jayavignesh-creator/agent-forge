@@ -238,12 +238,12 @@ def plan(
 def construct(
     run_id: Annotated[str, typer.Argument(help="Run ID to construct orchestrator for.")]
 ):
-    """Get orchestrator code from orchestrator agent."""
+    """Get orchestrator plan from master orchestrator."""
     try:
         # Importing here to avoid circular imports since MasterOrchestrator also imports slugify from cli.main
         from core.master_orchestrator import MasterOrchestrator
 
-        typer.secho(f"Constructing langgraph orchestrator code for run {run_id} ...", fg=typer.colors.GREEN)
+        typer.secho(f"Constructing orchestrator plan for run {run_id} ...", fg=typer.colors.GREEN)
         orchestrator = MasterOrchestrator(run_id=run_id)
         orch_plan = orchestrator.construct_orechestrator_plan()
 

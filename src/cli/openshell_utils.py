@@ -4,6 +4,21 @@ import subprocess
 from pathlib import Path
 
 
+def run_openshell_command(command: list[str]) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        stderr = exc.stderr.strip() if exc.stderr else "No stderr output."
+        raise RuntimeError(
+            f"OpenShell command '{' '.join(command)}' failed: {stderr}"
+        ) from exc
+
+
 def upload_run_to_openshell_sandbox(
     folder_path: str | Path,
     run_id: str,
@@ -18,11 +33,8 @@ def upload_run_to_openshell_sandbox(
     destination = f"/sandbox/.openclaw/workspace/{run_id}"
 
     try:
-        return subprocess.run(
-            ["openshell", "sandbox", "upload", "orchestrator", str(source), destination, "--no-git-ignore"],
-            check=True,
-            capture_output=True,
-            text=True,
+        return run_openshell_command(
+            ["openshell", "sandbox", "upload", "orchestrator", str(source), destination, "--no-git-ignore"]
         )
     except subprocess.CalledProcessError as exc:
         stderr = exc.stderr.strip() if exc.stderr else "No stderr output."
