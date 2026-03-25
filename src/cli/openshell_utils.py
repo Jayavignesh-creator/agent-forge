@@ -19,16 +19,13 @@ def run_openshell_command(command: list[str]) -> subprocess.CompletedProcess[str
         ) from exc
 
 
-def upload_run_to_openshell_sandbox(
+def upload_to_openshell_sandbox(
     folder_path: str | Path,
     run_id: str,
 ) -> subprocess.CompletedProcess[str]:
-    source = Path(folder_path) / run_id
-    source = source.expanduser().resolve()
+    source = folder_path.expanduser().resolve()
     if not source.exists():
         raise FileNotFoundError(f"Folder not found: {source}")
-    if not source.is_dir():
-        raise NotADirectoryError(f"Expected a directory, got: {source}")
 
     destination = f"/sandbox/.openclaw/workspace/{run_id}"
 

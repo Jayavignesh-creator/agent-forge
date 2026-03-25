@@ -8,7 +8,7 @@ import yaml
 from core.planner import PlannerAgent
 from core.prompt_compiler import PromptCompilerAgent
 
-from cli.openshell_utils import upload_run_to_openshell_sandbox, run_openclaw_agent_in_sandbox
+from cli.openshell_utils import upload_to_openshell_sandbox, run_openclaw_agent_in_sandbox
 
 import uuid
     
@@ -234,6 +234,28 @@ def plan(
         raise typer.Exit(code=1)
     
 
+def upload_files_sandbox(
+    run_id: Annotated[str, typer.Argument(help="Run ID to construct orchestrator for.")]
+):
+    upload_run = upload_to_openshell_sandbox(Path(RUN_DIR) / run_id, run_id)
+    if upload_run.returncode == 0:
+        typer.secho(f"Successfully uploaded run {run_id} to OpenShell sandbox.", fg=typer.colors.GREEN)
+    else:
+        typer.secho(f"Failed to upload run {run_id} to OpenShell sandbox. Return code: {upload_run.returncode}", err=True, fg=typer.colors.RED)
+        typer.secho(f"stdout: {upload_run.stdout}", err=True, fg=typer.colors.RED)
+        typer.secho(f"stderr: {upload_run.stderr}", err=True, fg=typer.colors.RED)
+        raise RuntimeError(f"OpenShell upload failed with return code {upload_run.returncode}")
+    
+    inject_system_prompt = upload_to_openshell_sandbox(Path("src/schemas/TASK.yaml"), run_id)
+    if inject_system_prompt.returncode == 0:
+        typer.secho(f"Successfully uploaded system prompt for run {run_id} to OpenShell sandbox.", fg=typer.colors.GREEN)
+    else:
+        typer.secho(f"Failed to upload system prompt for run {run_id} to OpenShell sandbox. Return code: {inject_system_prompt.returncode}", err=True, fg=typer.colors.RED)
+        typer.secho(f"stdout: {inject_system_prompt.stdout}", err=True, fg=typer.colors.RED)
+        typer.secho(f"stderr: {inject_system_prompt.stderr}", err=True, fg=typer.colors.RED)
+        raise RuntimeError(f"OpenShell upload failed with return code {inject_system_prompt.returncode}")
+        
+
 @app.command()
 def construct(
     run_id: Annotated[str, typer.Argument(help="Run ID to construct orchestrator for.")]
@@ -246,18 +268,10 @@ def construct(
         typer.secho(f"Constructing orchestrator plan for run {run_id} ...", fg=typer.colors.GREEN)
         orchestrator = MasterOrchestrator(run_id=run_id)
         orch_plan = orchestrator.construct_orechestrator_plan()
-
-        cmd_out = upload_run_to_openshell_sandbox(RUN_DIR, run_id)
-        if cmd_out.returncode == 0:
-            typer.secho(f"Successfully uploaded run {run_id} to OpenShell sandbox.", fg=typer.colors.GREEN)
-        else:
-            typer.secho(f"Failed to upload run {run_id} to OpenShell sandbox. Return code: {cmd_out.returncode}", err=True, fg=typer.colors.RED)
-            typer.secho(f"stdout: {cmd_out.stdout}", err=True, fg=typer.colors.RED)
-            typer.secho(f"stderr: {cmd_out.stderr}", err=True, fg=typer.colors.RED)
-            raise RuntimeError(f"OpenShell upload failed with return code {cmd_out.returncode}")
         
+        upload_files_sandbox(run_id)
         openclaw_response = run_openclaw_agent_in_sandbox(
-            f"openclaw agent --agent main --local -m 'hello' --session-id {run_id}",
+            f"openclaw agent --agent main --local -m 'Follow the instructions inside TASK.yaml inside folder {run_id}' --session-id {run_id}",
             "openshell-orchestrator",
         )
 
