@@ -1,6 +1,8 @@
+import subprocess
 import json
 from pathlib import Path
 from typing import Annotated
+from time import sleep
 
 import typer
 import yaml
@@ -8,7 +10,7 @@ import yaml
 from core.planner import PlannerAgent
 from core.prompt_compiler import PromptCompilerAgent
 
-from cli.openshell_utils import upload_to_openshell_sandbox, run_openclaw_agent_in_sandbox
+from cli.openshell_utils import upload_to_openshell_sandbox, run_openclaw_agent_in_sandbox, run_openshell_command
 
 import uuid
     
@@ -254,6 +256,33 @@ def upload_files_sandbox(
         typer.secho(f"stdout: {inject_system_prompt.stdout}", err=True, fg=typer.colors.RED)
         typer.secho(f"stderr: {inject_system_prompt.stderr}", err=True, fg=typer.colors.RED)
         raise RuntimeError(f"OpenShell upload failed with return code {inject_system_prompt.returncode}")
+
+
+def preflight():
+    """Run preflight checks."""
+    gateway_ok = sandbox_ok = False
+    typer.secho("Running preflight checks ...", fg=typer.colors.GREEN)
+    try:
+        gateway_check = run_openshell_command(["openshell", "status"])
+
+    except Exception as exc:
+        typer.secho("OpenShell Gateway is not running or not reachable.", err=True, fg=typer.colors.RED)
+        typer.secho(f"Starting gateway container openshell-cluster-openshell", err=True, fg=typer.colors.YELLOW)
+        subprocess.run(
+            ["docker", "start", "openshell-cluster-openshell"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        sleep(10)  # Wait for the container to start
+
+    try:
+        sandbox_check = run_openshell_command(["openshell", "sandbox", "get", "orchestrator"])
+        
+    except Exception as exc:
+        typer.secho(f"Error: {exc}", err=True, fg=typer.colors.RED)
+    
+    typer.secho("Preflight checks passed. OpenShell environment is ready.", fg=typer.colors.GREEN)
         
 
 @app.command()
@@ -269,6 +298,7 @@ def construct(
         orchestrator = MasterOrchestrator(run_id=run_id)
         orch_plan = orchestrator.construct_orechestrator_plan()
         
+        preflight()
         upload_files_sandbox(run_id)
         openclaw_response = run_openclaw_agent_in_sandbox(
             f"openclaw agent --agent main --local -m 'Follow the instructions inside TASK.yaml inside folder {run_id}' --session-id {run_id}",
