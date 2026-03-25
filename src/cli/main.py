@@ -8,6 +8,8 @@ import yaml
 from core.planner import PlannerAgent
 from core.prompt_compiler import PromptCompilerAgent
 
+from cli.openshell_utils import upload_run_to_openshell_sandbox, run_openclaw_agent_in_sandbox
+
 import uuid
     
 RUN_DIR = Path(f"runs")
@@ -238,12 +240,36 @@ def construct(
 ):
     """Get orchestrator code from orchestrator agent."""
     try:
-        from core.master_orchestrator import MasterOrchestratorAgent
+        # Importing here to avoid circular imports since MasterOrchestrator also imports slugify from cli.main
+        from core.master_orchestrator import MasterOrchestrator
 
         typer.secho(f"Constructing langgraph orchestrator code for run {run_id} ...", fg=typer.colors.GREEN)
-        orchestrator = MasterOrchestratorAgent(run_id=run_id)
-        out = orchestrator.construct_orchestrator()
-        typer.secho(f"Constructed orchestrator plan {out}", fg=typer.colors.BLUE)
+        orchestrator = MasterOrchestrator(run_id=run_id)
+        orch_plan = orchestrator.construct_orechestrator_plan()
+
+        cmd_out = upload_run_to_openshell_sandbox(RUN_DIR, run_id)
+        if cmd_out.returncode == 0:
+            typer.secho(f"Successfully uploaded run {run_id} to OpenShell sandbox.", fg=typer.colors.GREEN)
+        else:
+            typer.secho(f"Failed to upload run {run_id} to OpenShell sandbox. Return code: {cmd_out.returncode}", err=True, fg=typer.colors.RED)
+            typer.secho(f"stdout: {cmd_out.stdout}", err=True, fg=typer.colors.RED)
+            typer.secho(f"stderr: {cmd_out.stderr}", err=True, fg=typer.colors.RED)
+            raise RuntimeError(f"OpenShell upload failed with return code {cmd_out.returncode}")
+        
+        openclaw_response = run_openclaw_agent_in_sandbox(
+            f"openclaw agent --agent main --local -m 'hello' --session-id {run_id}",
+            "openshell-orchestrator",
+        )
+
+        typer.secho(f"OpenClaw agent execution completed with return code {openclaw_response.returncode}", fg=typer.colors.GREEN)
+        if openclaw_response.returncode != 0:
+            typer.secho(f"stdout: {openclaw_response.stdout}", err=True, fg=typer.colors.RED)
+            typer.secho(f"stderr: {openclaw_response.stderr}", err=True, fg=typer.colors.RED)
+            raise RuntimeError(f"OpenClaw agent execution failed with return code {openclaw_response.returncode}")
+        else:
+            typer.secho(f"Openclaw: {openclaw_response.stdout}", fg=typer.colors.BLUE)
+
+        typer.secho(f"Constructed orchestrator plan", fg=typer.colors.BLUE)
 
     except Exception as exc:
         typer.secho(f"Error: {exc}", err=True, fg=typer.colors.RED)

@@ -18,17 +18,15 @@ class OrchestratorConfig:
     model: str = os.getenv("OPENAI_MODEL", "gpt-5.2")
     prompt_path: Path = Path("src/schemas/orchestrator.yaml")
 
-class MasterOrchestratorAgent:
+class MasterOrchestrator:
     """Orchestrate the overall agent workflow by coordinating the planner and compiler agents."""
 
     def __init__(
         self,
         run_id: str,
-        client: OpenAI | None = None
     ) -> None:
         load_dotenv()
         self.config = OrchestratorConfig()
-        self.client = client or OpenAI()
         self.RUN_DIR = Path(f"runs") / run_id
         self.run_id = run_id
         self.system_prompt = self._load_system_prompt(self.config.prompt_path)
@@ -60,6 +58,12 @@ class MasterOrchestratorAgent:
             "agent_prompt_paths": agent_paths,
             "state_path": str(self.RUN_DIR / "state.json"),
         }
+
+        orch_plan = json.dumps(orch_plan, indent=2)
+        
+        orch_input_path = self.RUN_DIR / "orch_input.json"
+        orch_input_path.write_text(orch_plan, encoding="utf-8")
+
         return orch_plan
     
     def write_orchestrator_output(self, orchestrator_output: dict[str, Any]) -> Path:
@@ -73,36 +77,6 @@ class MasterOrchestratorAgent:
         script_path.write_text(script_content, encoding="utf-8")
 
         return output_path.resolve()
-
-    def construct_orchestrator(self) -> dict[str, Any]:
-        orch_plan = json.dumps(self.construct_orechestrator_plan())
-        try:
-            response = self.client.responses.create(
-                model=self.config.model,
-                input=[
-                    {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": orch_plan},
-                ],
-                text={"format": {"type": "json_object"}},
-            )
-        except OpenAIError as exc:
-            message = "Orchestrator request failed."
-            if isinstance(exc, APIError) and exc.message:
-                message = f"Orchestrator request failed: {exc.message}"
-            raise RuntimeError(message) from exc
-
-        output_text = response.output_text
-        if not output_text:
-            raise ValueError("Orchestrator model returned an empty response.")
-
-        try:
-            orchestrator_output = json.loads(output_text)
-            self.write_orchestrator_output(orchestrator_output)
-
-            return orchestrator_output
-        except json.JSONDecodeError as exc:
-            raise ValueError("Orchestrator model returned invalid JSON.") from exc
-        
 
     @staticmethod
     def _load_system_prompt(prompt_path: Path) -> str:
