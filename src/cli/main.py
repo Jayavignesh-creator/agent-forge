@@ -287,12 +287,12 @@ def preflight():
 def construct(
     run_id: Annotated[str, typer.Argument(help="Run ID to construct orchestrator for.")]
 ):
-    """Get orchestrator plan from master orchestrator."""
+    """Get orchestrator plan from master orchestrator. Executes the plan in OpenShell sandbox."""
     try:
         # Importing here to avoid circular imports since MasterOrchestrator also imports slugify from cli.main
         from core.master_orchestrator import MasterOrchestrator
 
-        typer.secho(f"Constructing orchestrator plan for run {run_id} ...", fg=typer.colors.GREEN)
+        typer.secho(f"Constructing and executing orchestrator plan for run {run_id}", fg=typer.colors.GREEN)
         orchestrator = MasterOrchestrator(run_id=run_id)
         orch_plan = orchestrator.construct_orechestrator_plan()
         
@@ -312,26 +312,6 @@ def construct(
 
         typer.secho(f"Constructed orchestrator plan", fg=typer.colors.BLUE)
 
-    except Exception as exc:
-        typer.secho(f"Error: {exc}", err=True, fg=typer.colors.RED)
-        raise typer.Exit(code=1)
-    
-
-@app.command()
-def execute(
-    run_id: Annotated[str, typer.Argument(help="Run ID to execute.")]
-) -> None:
-    """Execute a plan by run ID."""
-    try:
-        from core.orchestrate import execute_run
-
-        typer.secho(f"Executing run {run_id} ...", fg=typer.colors.GREEN)
-        result = execute_run(run_id)
-        typer.secho("Execution complete.", fg=typer.colors.BLUE)
-        typer.secho(
-            f"Final output written to {result.get('final_output_path', 'unknown')}",
-            fg=typer.colors.BLUE,
-        )
     except Exception as exc:
         typer.secho(f"Error: {exc}", err=True, fg=typer.colors.RED)
         raise typer.Exit(code=1)

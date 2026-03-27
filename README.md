@@ -16,8 +16,7 @@ In practice, this repo is the "plan and package" layer for agentic execution. It
 The CLI is centered around a simple flow:
 
 1. `plan` creates a task plan and compiled agent schemas.
-2. `construct` prepares orchestrator inputs, uploads the run into OpenShell, and invokes OpenClaw in the sandbox.
-3. `execute` runs the generated orchestration flow.
+2. `construct` prepares orchestrator inputs, uploads the run into OpenShell, and invokes OpenClaw for execution in the sandbox.
 
 Generated artifacts are written to the `runs/` directory so each run is isolated and inspectable.
 
@@ -26,15 +25,14 @@ Generated artifacts are written to the `runs/` directory so each run is isolated
 OpenShell is required before using this project.
 
 - Install OpenShell on your machine.
-- After OpenShell is installed, run the project setup script to configure OpenShell and OpenClaw for `agent-forge`.
 
 This project currently expects:
 
 - an OpenShell sandbox named `orchestrator`
 - SSH access to a sandbox target named `openshell-orchestrator`
-- `openclaw` available inside that sandbox
+- `openclaw` available and configured inside that sandbox
 
-Run the setup script from the repo root:
+To setup these, run the setup script from the repo root:
 
 ```bash
 bash src/config/configure.sh
@@ -57,6 +55,7 @@ Create a `.env` file based on `.env.example` and set:
 ```bash
 OPENAI_API_KEY=...
 OPENAI_MODEL=...
+ANTHROPIC_API_KEY=... #(For openclaw executions)
 ```
 
 ## Install
@@ -80,5 +79,4 @@ Then use the normal workflow:
 ```bash
 agent-forge plan "Build a plan for my task"
 agent-forge construct <run-id>
-agent-forge execute <run-id>
 ```
