@@ -249,6 +249,23 @@ def upload_files_sandbox(
         typer.secho(f"stdout: {upload_run.stdout}", err=True, fg=typer.colors.RED)
         typer.secho(f"stderr: {upload_run.stderr}", err=True, fg=typer.colors.RED)
         raise RuntimeError(f"OpenShell upload failed with return code {upload_run.returncode}")
+    
+
+def download_outputs_sandbox(
+    run_id: Annotated[str, typer.Argument(help="Run ID to construct orchestrator for.")]
+):
+    typer.secho(f"Downloading output files for run {run_id} from OpenShell sandbox ...", fg=typer.colors.GREEN)
+    download_run = run_openshell_command(
+        ["openshell", "sandbox", "download", "orchestrator", f"/sandbox/.openclaw/workspace/{run_id}/outputs", str(Path(RUN_DIR) / run_id / "outputs")]
+    )
+
+    if download_run.returncode == 0:
+        typer.secho(f"Successfully downloaded outputs for run {run_id} from OpenShell sandbox.", fg=typer.colors.GREEN)
+    else:
+        typer.secho(f"Failed to download outputs for run {run_id} from OpenShell sandbox. Return code: {download_run.returncode}", err=True, fg=typer.colors.RED)
+        typer.secho(f"stdout: {download_run.stdout}", err=True, fg=typer.colors.RED)
+        typer.secho(f"stderr: {download_run.stderr}", err=True, fg=typer.colors.RED)
+        raise RuntimeError(f"OpenShell download failed with return code {download_run.returncode}")
 
 
 @app.command()
@@ -312,6 +329,7 @@ def construct(
 
         typer.secho(f"Constructed orchestrator plan", fg=typer.colors.BLUE)
 
+        download_outputs_sandbox(run_id)
     except Exception as exc:
         typer.secho(f"Error: {exc}", err=True, fg=typer.colors.RED)
         raise typer.Exit(code=1)

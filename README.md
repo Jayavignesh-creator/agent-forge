@@ -80,3 +80,5 @@ Then use the normal workflow:
 agent-forge plan "Build a plan for my task"
 agent-forge construct <run-id>
 ```
+
+Your outputs will then be available in runs/<run_id>/outputs/
