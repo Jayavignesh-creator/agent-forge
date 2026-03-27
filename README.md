@@ -25,9 +25,8 @@ Generated artifacts are written to the `runs/` directory so each run is isolated
 
 OpenShell is required before using this project.
 
-- Install and configure OpenShell on your machine.
-- Ensure the OpenShell gateway/sandbox is available.
-- Ensure OpenClaw is configured inside that OpenShell environment, because this repo invokes it from the sandbox.
+- Install OpenShell on your machine.
+- After OpenShell is installed, run the project setup script to configure OpenShell and OpenClaw for `agent-forge`.
 
 This project currently expects:
 
@@ -35,11 +34,13 @@ This project currently expects:
 - SSH access to a sandbox target named `openshell-orchestrator`
 - `openclaw` available inside that sandbox
 
-Once OpenShell and OpenClaw are configured, set up SSH access with:
+Run the setup script from the repo root:
 
 ```bash
-printf '\n' >> ~/.ssh/config && openshell sandbox ssh-config orchestrator >> ~/.ssh/config
+bash src/config/configure.sh
 ```
+
+That script creates the expected sandbox, applies the project sandbox policy, configures SSH access, runs OpenClaw onboarding inside the sandbox, and uploads the project identity file into the sandbox workspace.
 
 The `construct` command calls:
 
@@ -67,6 +68,14 @@ uv tool install .
 ```
 
 ## Usage
+
+Run preflight every time you start working with `agent-forge`:
+
+```bash
+agent-forge preflight
+```
+
+Then use the normal workflow:
 
 ```bash
 agent-forge plan "Build a plan for my task"
