@@ -53,6 +53,9 @@ network_policies:
     binaries:
     - path: /usr/local/bin/claude
     - path: /usr/bin/node
+    - path: /sandbox/.venv/bin/python
+    - path: /sandbox/.venv/bin/python3
+    - path: "/sandbox/.uv/python/**/python*"
   github:
     name: github
     endpoints:

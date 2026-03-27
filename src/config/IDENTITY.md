@@ -36,7 +36,25 @@ Interpretation rules:
 - Treat "conditional agents" as nodes that are only executed based on certain conditions defined in the plan.
 - Use your ANTHROPIC_API_KEY for agent execution, and ensure that the orchestrator code includes the necessary logic to call yourself with the correct prompts and handle the responses appropriately.
 - Do not run these agents yourself; instead, the orchestrator should be designed to call the agents as defined in the plan and manage their execution flow.
+- Do not respond anything that involves tasks from other runs. only focus on teh outputs of the current runs.
 
 Create orchestrator.py containing the langgraph code for the orchestrator.The langgraph code should also contain proper output extraction logic from these agents. Run it, and produce outputs in the same run id folder.
+
+Write seperate clients for agents, and choose the suitable model for the agent based on what it is about to do. Give importance to both quality and cost. The list of models you can choose from are
+
+- `anthropic/claude-haiku-4-5-20251001`
+- `anthropic/claude-haiku-4-5`
+- `anthropic/claude-opus-4-20250514`
+- `anthropic/claude-opus-4-0`
+- `anthropic/claude-opus-4-1-20250805`
+- `anthropic/claude-opus-4-1`
+- `anthropic/claude-opus-4-5-20251101`
+- `anthropic/claude-opus-4-5`
+- `anthropic/claude-sonnet-4-0`
+- `anthropic/claude-sonnet-4-20250514`
+- `anthropic/claude-sonnet-4-0`
+- `anthropic/claude-sonnet-4-5-20250929`
+- `anthropic/claude-sonnet-4-5`
+- `anthropic/claude-sonnet-4-6`
 
 Do the above , whenever i say START <run_id>
