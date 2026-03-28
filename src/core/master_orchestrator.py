@@ -8,10 +8,10 @@ from typing import Any
 
 import typer
 import yaml
-from dotenv import load_dotenv
 from openai import APIError, OpenAI, OpenAIError
 
 from cli.main import slugify
+from core.env_utils import load_project_env
 
 @dataclass(slots=True)
 class OrchestratorConfig:
@@ -25,9 +25,9 @@ class MasterOrchestrator:
         self,
         run_id: str,
     ) -> None:
-        load_dotenv()
+        load_project_env(__file__)
         self.config = OrchestratorConfig()
-        self.RUN_DIR = Path(f"runs") / run_id
+        self.RUN_DIR = Path(f"workspace") / run_id
         self.run_id = run_id
         self.system_prompt = self._load_system_prompt(self.config.prompt_path)
 

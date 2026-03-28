@@ -9,13 +9,13 @@ from pathlib import Path
 from typing import Annotated, Any, TypedDict
 
 import yaml
-from dotenv import load_dotenv
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 from openai import APIError, OpenAI, OpenAIError
 
+from core.env_utils import load_project_env, require_openai_api_key
 
-RUNS_DIR = Path("runs")
+RUNS_DIR = Path("workspace")
 TASK_SUMMARY_PATTERN = re.compile(r"\*\*Task Summary:\*\*\s*(.+)")
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.2")
 
@@ -249,11 +249,8 @@ def assign_workers(state: OrchestratorState) -> list[Send]:
 
 
 def worker(state: WorkerState) -> dict[str, Any]:
-    load_dotenv()
-    if not os.getenv("OPENAI_API_KEY"):
-        raise RuntimeError(
-            "OPENAI_API_KEY is not set. Add it to your environment or .env file."
-        )
+    load_project_env(__file__)
+    require_openai_api_key()
 
     client = OpenAI()
     run_artifacts = _build_run_artifacts(state["run_id"])

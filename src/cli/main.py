@@ -2,19 +2,27 @@ import subprocess
 import json
 from pathlib import Path
 from typing import Annotated
-from time import sleep
 
 import typer
 import yaml
+from rich.console import Console
 
 from core.planner import PlannerAgent
 from core.prompt_compiler import PromptCompilerAgent
 
-from cli.openshell_utils import upload_to_openshell_sandbox, run_openclaw_agent_in_sandbox, run_openshell_command
+from cli.openshell_utils import upload_to_openshell_sandbox, run_openclaw_agent_in_sandbox, run_openshell_command, download_workspace, upload_workspace
 
 import uuid
     
-RUN_DIR = Path(f"runs")
+RUN_DIR = Path(f"workspace/")
+CONSOLE = Console()
+BANNER_TEXT = r"""
+   ___   _____________  ______   ____________  ____  ____________
+  /   | / ____/ ____/ |/ /_  /  / ____/ __ \/ __ \/ ____/ ____/
+ / /| |/ / __/ __/  |   / / /  / /_  / / / / /_/ / / __/ __/   
+/ ___ / /_/ / /___ /   | / /__/ __/ / /_/ / _, _/ /_/ / /___   
+/_/  |_\____/_____//_/|_/____/_/    \____/_/ |_|\____/_____/   
+"""
 
 app = typer.Typer(
     name="agent-forge",
@@ -26,6 +34,12 @@ app = typer.Typer(
 @app.callback()
 def cli() -> None:
     """Run agent-forge commands."""
+    return None
+
+
+def main() -> None:
+    CONSOLE.print(f"[bold #ff8c00]{BANNER_TEXT}[/]")
+    app()
 
 
 def generate_run_id() -> str:
@@ -269,35 +283,60 @@ def download_outputs_sandbox(
 
 
 @app.command()
-def preflight():
-    """Run preflight checks."""
-    gateway_ok = sandbox_ok = False
-    typer.secho("Running preflight checks ...", fg=typer.colors.GREEN)
+def configure(
+    recreate: Annotated[bool, typer.Option(help="Whether to delete and recreate the OpenShell sandbox during configuration. Sets --run-onboard to true.")] = False,
+    onboard: Annotated[bool, typer.Option(help="Whether to run the OpenShell onboard command during configuration.")] = False,
+):
+    """Run configuration script."""
+    typer.secho("Running configuration script ...\n", fg=typer.colors.GREEN)
+    configure_command = ["bash", "src/config/configure.sh"]
+    if recreate:
+        configure_command.append("--recreate")
+    elif onboard:
+        configure_command.append("--onboard")
     try:
-        gateway_check = run_openshell_command(["openshell", "status"])
-
-    except Exception as exc:
-        typer.secho("OpenShell Gateway is not running or not reachable.", err=True, fg=typer.colors.RED)
-        typer.secho(f"Starting gateway container openshell-cluster-openshell", err=True, fg=typer.colors.YELLOW)
-
-        try:
-            subprocess.run(
-                ["docker", "start", "openshell-cluster-openshell"],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            sleep(10)  # Wait for the container to start
-        except Exception as docker_exc:
-            typer.secho(f"Docker engine is not running, make sure to start docker before using agent-forge", err=True, fg=typer.colors.RED)
-
-    try:
-        sandbox_check = run_openshell_command(["openshell", "sandbox", "get", "orchestrator"])
-        
+        subprocess.run(
+            configure_command,
+            check=True,
+            text=True,
+        )
     except Exception as exc:
         typer.secho(f"Error: {exc}", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=1)
     
-    typer.secho("Preflight checks passed. OpenShell environment is ready.", fg=typer.colors.GREEN)
+    try:
+        sync_run = upload_workspace()
+        if sync_run.returncode == 0:
+            typer.secho(f"Successfully synced Openshell sandbox with local workspace.", fg=typer.colors.GREEN)
+        else:
+            typer.secho(f"Failed to sync with OpenShell sandbox. Return code: {sync_run.returncode}", err=True, fg=typer.colors.RED)
+            typer.secho(f"stdout: {sync_run.stdout}", err=True, fg=typer.colors.RED)
+            typer.secho(f"stderr: {sync_run.stderr}", err=True, fg=typer.colors.RED)
+            raise RuntimeError(f"OpenShell sync failed with return code {sync_run.returncode}")
+    except Exception as exc:
+        typer.secho(f"Error: {exc}", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    typer.secho("Configuration complete. OpenShell environment is ready.", fg=typer.colors.GREEN)
+
+@app.command()
+def sync(
+    download: Annotated[bool, typer.Option(help="Whether to download the latest workspace from OpenShell sandbox before syncing.")] = True,
+    upload: Annotated[bool, typer.Option(help="Whether to upload the local workspace to OpenShell sandbox after syncing.")] = False,
+):
+    """Sync local workspace with OpenShell sandbox."""
+    try:
+        sync_run = download_workspace() if download else upload_workspace() if upload else None
+        if sync_run.returncode == 0:
+            typer.secho(f"Successfully synced local workspace and OpenShell sandbox.", fg=typer.colors.GREEN)
+        else:
+            typer.secho(f"Failed to sync with OpenShell sandbox. Return code: {sync_run.returncode}", err=True, fg=typer.colors.RED)
+            typer.secho(f"stdout: {sync_run.stdout}", err=True, fg=typer.colors.RED)
+            typer.secho(f"stderr: {sync_run.stderr}", err=True, fg=typer.colors.RED)
+            raise RuntimeError(f"OpenShell sync failed with return code {sync_run.returncode}")
+    except Exception as exc:
+        typer.secho(f"Error: {exc}", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=1)
         
 
 @app.command()
@@ -337,4 +376,4 @@ def construct(
 
 
 if __name__ == "__main__":
-    app()
+    main()

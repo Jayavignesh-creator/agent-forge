@@ -27,6 +27,8 @@ ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-${OPENCLAW_ANTHROPIC_API_KEY:-}}"
 IDENTITY_FILE="${SCRIPT_DIR}/IDENTITY.md"
 IDENTITY_DESTINATION="${OPENCLAW_IDENTITY_DESTINATION:-/sandbox/.openclaw/workspace/}"
 SANDBOX_POLICY_FILE="${OPENCLAW_SANDBOX_POLICY_FILE:-${SCRIPT_DIR}/sandbox-policy.yaml}"
+RECREATE_SANDBOX=false
+RUN_ONBOARD=false
 
 print_info() {
   printf '%s\n\n' "$1"
@@ -41,6 +43,65 @@ require_command() {
     print_error "Missing required command: $1"
     exit 1
   fi
+}
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [--recreate] [--onboard]
+
+Options:
+  --recreate  Delete the existing sandbox first, then continue setup.
+  --onboard   Run onboarding without recreating the sandbox.
+  -h, --help  Show this help message.
+EOF
+}
+
+parse_args() {
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --recreate)
+        RECREATE_SANDBOX=true
+        RUN_ONBOARD=true
+        ;;
+      --onboard)
+        RUN_ONBOARD=true
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        print_error "Unknown argument: $1"
+        usage
+        exit 1
+        ;;
+    esac
+    shift
+  done
+}
+
+delete_sandbox() {
+  if ! openshell sandbox get "${SANDBOX_NAME}" >/dev/null 2>&1; then
+    print_info "Recreate requested; sandbox ${SANDBOX_NAME} does not exist, continuing"
+    return
+  fi
+
+  print_info "Recreate requested; deleting OpenShell sandbox: ${SANDBOX_NAME}"
+  if ! openshell sandbox delete "${SANDBOX_NAME}"; then
+    openshell sandbox delete --name "${SANDBOX_NAME}"
+  fi
+}
+
+ensure_gateway() {
+  if openshell status >/dev/null 2>&1; then
+    print_info "OpenShell gateway is running"
+    return
+  fi
+
+  print_info "OpenShell gateway is not reachable; starting Docker container openshell-cluster-openshell"
+  require_command docker
+  docker start openshell-cluster-openshell >/dev/null
+  sleep 10
 }
 
 ensure_sandbox() {
@@ -92,6 +153,20 @@ verify_ssh_host() {
   fi
 }
 
+export_anthropic_api_key() {
+  local escaped_key
+  local remote_command
+
+  escaped_key="$(printf '%q' "${ANTHROPIC_API_KEY}")"
+  remote_command="$(
+    printf 'bash -lc %q' \
+      "printf '%s\n' 'export ANTHROPIC_API_KEY=${escaped_key}' 'export OPENCLAW_ANTHROPIC_API_KEY=${escaped_key}' > ~/.openclaw_env && for shell_file in ~/.bashrc ~/.bash_profile ~/.profile; do touch \"\$shell_file\"; grep -qxF 'source ~/.openclaw_env' \"\$shell_file\" || printf '\nsource ~/.openclaw_env\n' >> \"\$shell_file\"; done"
+  )"
+
+  print_info "Exporting ANTHROPIC_API_KEY inside ${SSH_HOST}"
+  ssh -n "${SSH_HOST}" "${remote_command}"
+}
+
 build_onboard_command() {
   local cmd
   cmd=(
@@ -134,25 +209,36 @@ upload_identity_file() {
     exit 1
   fi
 
-  print_info "Uploading $(basename "${IDENTITY_FILE}") to ${IDENTITY_DESTINATION}"
   openshell sandbox upload "${SANDBOX_NAME}" "${IDENTITY_FILE}" "${IDENTITY_DESTINATION}"
 }
 
 main() {
+  parse_args "$@"
+
   require_command openshell
   require_command ssh
+  ensure_gateway
 
   if [ -z "${ANTHROPIC_API_KEY}" ]; then
     print_error "Set ANTHROPIC_API_KEY or OPENCLAW_ANTHROPIC_API_KEY before running this script."
     exit 1
   fi
 
+  if [ "${RECREATE_SANDBOX}" = "true" ]; then
+    delete_sandbox
+  fi
+
   ensure_sandbox
   ensure_ssh_config
   verify_ssh_host
+  export_anthropic_api_key
 
-  run_onboard
-  upload_identity_file
+  if [ "${RUN_ONBOARD}" = "true" ]; then
+    run_onboard
+    upload_identity_file
+  fi
+
+  print_info "Configuration complete! You can now connect to your sandbox with: ssh ${SSH_HOST}"
 }
 
 main "$@"

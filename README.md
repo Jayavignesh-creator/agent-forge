@@ -6,7 +6,7 @@ It uses an OpenAI-powered planning pipeline to:
 
 - analyze a task and decide the minimum set of agents needed
 - compile each agent into a concrete prompt/schema package
-- assemble run artifacts under `runs/<run-id>/`
+- assemble run artifacts under `workspace/<run-id>/`
 - hand the run to OpenShell/OpenClaw so an orchestrator can be generated and executed in a sandbox
 
 In practice, this repo is the "plan and package" layer for agentic execution. It does not just run one model call. It creates a structured plan, prepares agent prompt files, and then delegates orchestration work to OpenClaw inside OpenShell.
@@ -18,7 +18,7 @@ The CLI is centered around a simple flow:
 1. `plan` creates a task plan and compiled agent schemas.
 2. `construct` prepares orchestrator inputs, uploads the run into OpenShell, and invokes OpenClaw for execution in the sandbox.
 
-Generated artifacts are written to the `runs/` directory so each run is isolated and inspectable.
+Generated artifacts are written to the `workspace/` directory so each run is isolated and inspectable.
 
 ## Prerequisites
 
@@ -81,4 +81,4 @@ agent-forge plan "Build a plan for my task"
 agent-forge construct <run-id>
 ```
 
-Your outputs will then be available in runs/<run_id>/outputs/
+Your outputs will then be available in workspace/<run_id>/outputs/

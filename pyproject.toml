@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-agent-forge = "cli.main:app"
+agent-forge = "cli.main:main"
 
 [build-system]
 requires = ["setuptools>=69"]

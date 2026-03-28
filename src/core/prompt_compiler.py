@@ -7,8 +7,9 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from dotenv import load_dotenv
 from openai import APIError, OpenAI, OpenAIError
+
+from core.env_utils import load_project_env, require_openai_api_key
 
 
 @dataclass(slots=True)
@@ -24,7 +25,8 @@ class PromptCompilerAgent:
         self,
         client: OpenAI | None = None
     ) -> None:
-        load_dotenv()
+        load_project_env(__file__)
+        require_openai_api_key()
         self.config = CompilerConfig()
         self.client = client or OpenAI()
         self.system_prompt = self._load_system_prompt(self.config.prompt_path)
